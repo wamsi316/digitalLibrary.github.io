@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.8/xlsx.full.min.js"></script> <!-- Use xlsx from CDN -->
+  <title>Excel Data View</title>
+  <style>
+    .search-results {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    #fileContentTable {
+      margin-top: 20px;
+      width: 100%;
+    }
+    #fileContentTable th,
+    #fileContentTable td {
+      padding: 8px;
+      border: 1px solid #ddd;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container mt-4">
+  <h2>Excel Data View</h2>
+  
+  <!-- Upload button -->
+  <div class="custom-file mb-3">
+    <input type="file" class="custom-file-input" id="fileInput">
+    <label class="custom-file-label" for="fileInput">Choose file</label>
+  </div>
+
+  <div class="form-group">
+    <input type="text" class="form-control" id="searchInput" placeholder="Search items...">
+  </div>
+
+  <div class="search-results">
+    <ul class="list-group" id="resultsList"></ul>
+  </div>
+  <div id="excel_data" class="mt-5"></div>
+  <!-- Web table to display file content -->
+  <table class="table table-bordered" id="fileContentTable">
+    <thead>
+      <tr></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.1/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+<script>
+  // Names of Files
+  let items = [
+    
+  ];
+
+  // Function to initialize the results list with existing items
+  function initializeResultsList() {
+    const resultsList = document.getElementById('resultsList');
+    resultsList.innerHTML = '';
+
+    items.forEach(item => {
+      const li = document.createElement('li');
+      li.className = 'list-group-item';
+      li.textContent = item;
+
+      // Add onclick event to display alert
+    //   li.onclick = function() {
+    //     alert("You clicked on: " + item);
+    //     displayFileContent(item); // Call function to display file content
+    //   };
+
+      resultsList.appendChild(li);
+    });
+  }
+
+  // Function to update the results list
+  function updateResultsList(query) {
+    const resultsList = document.getElementById('resultsList');
+    resultsList.innerHTML = '';
+
+    const filteredItems = filterItems(query);
+
+    if (filteredItems.length === 0) {
+      resultsList.innerHTML = '<li class="list-group-item">No results found</li>';
+    } else {
+      filteredItems.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item';
+        li.textContent = item;
+
+        // Add onclick event to display alert
+        li.onclick = function() {
+          alert("You clicked on: " + item);
+          displayFileContent(item); // Call function to display file content
+        };
+
+        resultsList.appendChild(li);
+      });
+    }
+  }
+
+  // Function to filter items based on the search input
+  function filterItems(query) {
+    return items.filter(item => item.toLowerCase().startsWith(query.toLowerCase()));
+  }
+
+  // Function to display XLSX file content in tabular format
+  function displayFileContent(fileName) {
+	const excel_file = document.getElementById('excel_file');
+
+excel_file.addEventListener('change', (event) => {
+
+    if(!['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'].includes(event.target.files[0].type))
+    {
+        document.getElementById('excel_data').innerHTML = '<div class="alert alert-danger">Only .xlsx or .xls file format are allowed</div>';
+
+        excel_file.value = '';
+
+        return false;
+    }
+
+    var reader = new FileReader();
+
+    reader.readAsArrayBuffer(event.target.files[0]);
+
+    reader.onload = function(event){
+
+        var data = new Uint8Array(reader.result);
+
+        var work_book = XLSX.read(data, {type:'array'});
+
+        var sheet_name = work_book.SheetNames;
+
+        var sheet_data = XLSX.utils.sheet_to_json(work_book.Sheets[sheet_name[0]], {header:1});
+
+        if(sheet_data.length > 0)
+        {
+            var table_output = '<table class="table table-striped table-bordered">';
+
+            for(var row = 0; row < sheet_data.length; row++)
+            {
+
+                table_output += '<tr>';
+
+                for(var cell = 0; cell < sheet_data[row].length; cell++)
+                {
+
+                    if(row == 0)
+                    {
+
+                        table_output += '<th>'+sheet_data[row][cell]+'</th>';
+
+                    }
+                    else
+                    {
+
+                        table_output += '<td>'+sheet_data[row][cell]+'</td>';
+
+                    }
+
+                }
+
+                table_output += '</tr>';
+
+            }
+
+            table_output += '</table>';
+
+            document.getElementById('excel_data').innerHTML = table_output;
+        }
+
+        excel_file.value = '';
+
+    }
+
+});
+  }
+
+  // Initialize the results list with existing items
+  initializeResultsList();
+
+  // Event listener for the input field
+  const searchInput = document.getElementById('searchInput');
+  searchInput.addEventListener('input', function () {
+    updateResultsList(this.value);
+  });
+
+  // Event listener for the file input
+  const fileInput = document.getElementById('fileInput');
+  fileInput.addEventListener('change', function (event) {
+    const file = event.target.files[0];
+    if (file) {
+      // Extract the file name without the extension
+      const fileName = file.name.replace(/\.[^/.]+$/, "");
+
+      // Display the uploaded file name in the list
+      items.push(fileName);
+
+      // Update the results list
+      updateResultsList(searchInput.value);
+      
+      // Reset the file input label
+      const fileInputLabel = document.querySelector('.custom-file-label');
+      fileInputLabel.textContent = 'Choose file';
+    }
+  });
+
+  const excel_file = document.getElementById('fileInput');
+
+excel_file.addEventListener('change', (event) => {
+
+    if(!['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'].includes(event.target.files[0].type))
+    {
+        document.getElementById('excel_data').innerHTML = '<div class="alert alert-danger">Only .xlsx or .xls file format are allowed</div>';
+
+        excel_file.value = '';
+
+        return false;
+    }
+
+    var reader = new FileReader();
+
+    reader.readAsArrayBuffer(event.target.files[0]);
+
+    reader.onload = function(event){
+
+        var data = new Uint8Array(reader.result);
+
+        var work_book = XLSX.read(data, {type:'array'});
+
+        var sheet_name = work_book.SheetNames;
+
+        var sheet_data = XLSX.utils.sheet_to_json(work_book.Sheets[sheet_name[0]], {header:1});
+
+        if(sheet_data.length > 0)
+        {
+            var table_output = '<table class="table table-striped table-bordered">';
+
+            for(var row = 0; row < sheet_data.length; row++)
+            {
+
+                table_output += '<tr>';
+
+                for(var cell = 0; cell < sheet_data[row].length; cell++)
+                {
+
+                    if(row == 0)
+                    {
+
+                        table_output += '<th>'+sheet_data[row][cell]+'</th>';
+
+                    }
+                    else
+                    {
+
+                        table_output += '<td>'+sheet_data[row][cell]+'</td>';
+
+                    }
+
+                }
+
+                table_output += '</tr>';
+
+            }
+
+            table_output += '</table>';
+
+            document.getElementById('excel_data').innerHTML = table_output;
+        }
+
+        excel_file.value = '';
+
+    }
+
+});
+
+
+</script>
+
+</body>
+</html>
